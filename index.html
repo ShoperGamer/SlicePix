@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เว็บแยกภาพ - Image Splitter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-200 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-primary-600">เว็บแยกภาพ</h1>
+                <p class="text-gray-600 dark:text-gray-400 mt-1">อัพโหลดภาพและแบ่งออกเป็นส่วนๆ อย่างง่ายดาย</p>
+            </div>
+            <button id="theme-toggle" class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
+                <i class="fas fa-moon dark:hidden"></i>
+                <i class="fas fa-sun hidden dark:block"></i>
+            </button>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Step 1: Upload Image -->
+            <section id="upload-section" class="mb-10">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold">1. อัพโหลดภาพ</h2>
+                    <div class="flex items-center text-sm bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">
+                        <span class="h-2 w-2 bg-primary-500 rounded-full mr-2"></span>
+                        <span>ขั้นตอนที่ 1</span>
+                    </div>
+                </div>
+                
+                <div id="upload-container" class="mb-6">
+                    <div id="upload-area" class="upload-area rounded-xl p-8 text-center cursor-pointer relative">
+                        <input type="file" id="image-upload" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*">
+                        <div class="flex flex-col items-center justify-center">
+                            <i class="fas fa-cloud-upload-alt text-4xl text-primary-500 mb-3"></i>
+                            <p class="font-medium mb-1">คลิกเพื่ออัพโหลดหรือลากไฟล์มาวางที่นี่</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">รองรับไฟล์ JPG, PNG ขนาดสูงสุด 5MB</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Preview -->
+                <div id="image-preview-container" class="hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-medium">ภาพตัวอย่าง</h3>
+                        <button id="remove-image" class="text-red-500 hover:text-red-700">
+                            <i class="fas fa-times mr-1"></i> ลบภาพ
+                        </button>
+                    </div>
+                    <div class="relative">
+                       <div class="image-preview-container bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+                           <!-- เปลี่ยนโครงสร้างเพื่อแก้ไขปัญหาเส้นพรีวิว -->
+                           <div class="image-wrapper">
+                               <img id="image-preview" class="w-full h-auto" alt="ภาพตัวอย่าง">
+                               <div id="grid-overlay" class="grid-overlay"></div>
+                           </div>
+                       </div>
+                   </div>
+                </div>
+            </section>
+            
+            <!-- Progress Bar -->
+            <div id="progress-section" class="hidden mb-8">
+                <div class="flex justify-between text-sm mb-1">
+                    <span>สถานะการประมวลผล</span>
+                    <span id="progress-text">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <!-- Step 2: Split Options -->
+            <section id="options-section" class="hidden mb-10">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold">2. ตั้งค่าการแบ่งภาพ</h2>
+                    <div class="flex items-center text-sm bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">
+                        <span class="h-2 w-2 bg-primary-500 rounded-full mr-2"></span>
+                        <span>ขั้นตอนที่ 2</span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <!-- Split Direction -->
+                    <div>
+                        <h3 class="font-medium mb-3">ทิศทางการแบ่ง</h3>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="split-option active border-2 border-primary-500 rounded-lg p-4 text-center cursor-pointer" data-direction="horizontal">
+                                <i class="fas fa-grip-lines text-3xl text-primary-500 mb-2"></i>
+                                <p>แนวนอน</p>
+                            </div>
+                            <div class="split-option border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center cursor-pointer" data-direction="vertical">
+                                <i class="fas fa-grip-lines-vertical text-3xl text-gray-500 dark:text-gray-400 mb-2"></i>
+                                <p>แนวตั้ง</p>
+                            </div>
+                            <div class="split-option border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center cursor-pointer" data-direction="grid">
+                                <i class="fas fa-border-all text-3xl text-gray-500 dark:text-gray-400 mb-2"></i>
+                                <p>ทั้งสองทิศทาง</p>
+                            </div>
+                        </div>
+
+                        <!-- Grid Options -->
+                        <div id="grid-options" class="grid-options">
+                            <div class="grid-option">
+                                <label>จำนวนแถว (แนวนอน)</label>
+                                <div class="input-group">
+                                    <button id="decrement-rows" class="bg-gray-200 dark:bg-gray-700 h-10 w-10 rounded-l-lg flex items-center justify-center">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                    <input id="grid-rows" type="number" min="2" max="10" value="2" class="h-10 w-full text-center border-t border-b border-gray-200 dark:border-gray-700 dark:bg-gray-800">
+                                    <button id="increment-rows" class="bg-gray-200 dark:bg-gray-700 h-10 w-10 rounded-r-lg flex items-center justify-center">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="grid-option">
+                                <label>จำนวนคอลัมน์ (แนวตั้ง)</label>
+                                <div class="input-group">
+                                    <button id="decrement-cols" class="bg-gray-200 dark:bg-gray-700 h-10 w-10 rounded-l-lg flex items-center justify-center">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                    <input id="grid-cols" type="number" min="2" max="10" value="2" class="h-10 w-full text-center border-t border-b border-gray-200 dark:border-gray-700 dark:bg-gray-800">
+                                    <button id="increment-cols" class="bg-gray-200 dark:bg-gray-700 h-10 w-10 rounded-r-lg flex items-center justify-center">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Split Count -->
+                    <div id="split-count-section">
+                        <h3 class="font-medium mb-3">จำนวนชิ้น</h3>
+                        <div class="flex items-center">
+                            <button id="decrement" class="bg-gray-200 dark:bg-gray-700 h-10 w-10 rounded-l-lg flex items-center justify-center">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <input id="split-count" type="number" min="2" max="10" value="2" class="h-10 w-16 text-center border-t border-b border-gray-200 dark:border-gray-700 dark:bg-gray-800">
+                            <button id="increment" class="bg-gray-200 dark:bg-gray-700 h-10 w-10 rounded-r-lg flex items-center justify-center">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <div class="ml-4 text-sm text-gray-500 dark:text-gray-400">
+                                <p>สูงสุด: 10 ชิ้น</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex flex-wrap gap-4 mt-8">
+                    <button id="split-btn" class="btn-primary px-6 py-3 rounded-lg font-medium flex items-center">
+                        <i class="fas fa-cut mr-2"></i> เริ่มแบ่งภาพ
+                    </button>
+                    <button id="reset-btn" class="btn-secondary px-6 py-3 rounded-lg font-medium">
+                        <i class="fas fa-redo mr-2"></i> ตั้งค่าใหม่
+                    </button>
+                </div>
+            </section>
+            
+            <!-- Results Section -->
+            <section id="results-section" class="hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold">ผลลัพธ์</h2>
+                    <div class="flex items-center text-sm bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">
+                        <span class="h-2 w-2 bg-green-500 rounded-full mr-2"></span>
+                        <span>เสร็จสิ้น</span>
+                    </div>
+                </div>
+                
+                <div id="result-container" class="mb-6">
+                    <!-- Results will be displayed here -->
+                </div>
+                
+                <div class="flex flex-wrap gap-4">
+                    <button id="download-all-btn" class="btn-primary px-6 py-3 rounded-lg font-medium flex items-center justify-center">
+                        <i class="fas fa-file-archive mr-2"></i>
+                        <span id="download-text">ดาวน์โหลดทั้งหมด (ZIP)</span>
+                        <i class="fas fa-spinner zip-loading ml-2"></i>
+                    </button>
+                    <button id="new-image-btn" class="btn-secondary px-6 py-3 rounded-lg font-medium">
+                        <i class="fas fa-plus mr-2"></i> ภาพใหม่
+                    </button>
+                </div>
+            </section>
+        </main>
+        
+    <script src="script.js"></script>
+</body>
+</html>
